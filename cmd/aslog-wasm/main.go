@@ -9,6 +9,9 @@
 //
 //	aslogOpen(Uint8Array) -> JSON string: {"runs": [...]} or {"error": "..."}
 //	aslogExtract("[1,3]") -> Uint8Array of gzip, or a string error
+//	aslogSaves("[1,3]", addon Uint8Array|null, stats Uint8Array|null) -> {addon, stats, addonRuns,
+//	  statsRuns, addonError, statsError}: each save cut down to the chosen runs (Uint8Array, or null
+//	  when no chosen run has data in it), or a string error
 package main
 
 import (
@@ -57,8 +60,52 @@ func extract(_ js.Value, args []js.Value) any {
 	return out
 }
 
+func bytesOf(v js.Value) string {
+	if v.IsUndefined() || v.IsNull() {
+		return ""
+	}
+	data := make([]byte, v.Get("length").Int())
+	js.CopyBytesToGo(data, v)
+	return string(data)
+}
+
+func toJS(data []byte) any {
+	if data == nil {
+		return nil
+	}
+	out := js.Global().Get("Uint8Array").New(len(data))
+	js.CopyBytesToJS(out, data)
+	return out
+}
+
+func errText(err error) any {
+	if err == nil {
+		return nil
+	}
+	return err.Error()
+}
+
+// chosenSaves cuts the addon saves down to the chosen runs, so the rest of a player's history,
+// Azeroth Stats backups and co-op names never leave the browser.
+func chosenSaves(_ js.Value, args []js.Value) any {
+	if current == nil {
+		return "no log open"
+	}
+	var indexes []int
+	if err := json.Unmarshal([]byte(args[0].String()), &indexes); err != nil {
+		return err.Error()
+	}
+	got := current.ChosenSaves(indexes, bytesOf(args[1]), bytesOf(args[2]))
+	return map[string]any{
+		"addon": toJS(got.Addon), "stats": toJS(got.Stats),
+		"addonRuns": got.AddonRuns, "statsRuns": got.StatsRuns,
+		"addonError": errText(got.AddonErr), "statsError": errText(got.StatsErr),
+	}
+}
+
 func main() {
 	js.Global().Set("aslogOpen", js.FuncOf(open))
 	js.Global().Set("aslogExtract", js.FuncOf(extract))
+	js.Global().Set("aslogSaves", js.FuncOf(chosenSaves))
 	select {}
 }

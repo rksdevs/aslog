@@ -128,10 +128,17 @@ func OurCopy(runs []map[string]any) ([]byte, error) {
 
 // StatsCopy is an Azeroth Stats save holding only the given runs and the addon's version, which is
 // all a WoW Logs report reads. The player's own file, with its history and settings, is never changed.
+// Each run's "coop" block is left out: its peers can name companions, and no report reads it.
 func StatsCopy(version string, runs []map[string]any) ([]byte, error) {
 	list := make([]any, len(runs))
 	for i, run := range runs {
-		list[i] = run
+		kept := make(map[string]any, len(run))
+		for key, value := range run {
+			if key != "coop" {
+				kept[key] = value
+			}
+		}
+		list[i] = kept
 	}
 	db := map[string]any{"runs": list}
 	if version != "" {
