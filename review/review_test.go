@@ -87,6 +87,34 @@ func TestExtractIsExactAndInLogOrder(t *testing.T) {
 	}
 }
 
+// The browser shows a run as already uploaded by its fingerprint, so a run cut out and sent must keep
+// the fingerprint the server stores, and different runs must not share one.
+func TestFingerprintSurvivesExtract(t *testing.T) {
+	a, b, c := run(0, 70, "Fireball"), run(5, 70, "Frostbolt"), run(10, 70, "Shadow Bolt")
+	s, err := Open([]byte(a + b + c))
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]bool{}
+	for _, r := range s.Runs {
+		if len(r.Fingerprint) != 64 || seen[r.Fingerprint] {
+			t.Fatalf("fingerprints must be 64 hex and distinct: %+v", s.Runs)
+		}
+		seen[r.Fingerprint] = true
+	}
+	gz, err := s.Extract([]int{2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	again, err := Open([]byte(gunzip(t, gz)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(again.Runs) != 1 || again.Runs[0].Fingerprint != s.Runs[1].Fingerprint {
+		t.Errorf("fingerprint after extract: %q, want %q", again.Runs[0].Fingerprint, s.Runs[1].Fingerprint)
+	}
+}
+
 func TestTextAndRunLines(t *testing.T) {
 	a, b := run(0, 70, "Fireball"), run(5, 70, "Frostbolt")
 	s, err := Open([]byte(a + b))

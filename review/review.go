@@ -36,6 +36,9 @@ type Run struct {
 	TopSpells []Spell `json:"topSpells"`
 	EndReason string  `json:"endReason"`
 	Inferred  bool    `json:"inferred"`
+	// Fingerprint is segment.Run.Fingerprint, which the server keeps per stored run, so a player can
+	// see which runs they have already uploaded.
+	Fingerprint string `json:"fingerprint"`
 }
 
 // Spell is a top damage source, which is how a player recognises a run: the log names no hero.
@@ -161,7 +164,7 @@ func summarize(r *segment.Run) Run {
 	out := Run{
 		Index: r.Index, Start: stamp(r.First), End: stamp(r.Last), ActiveMs: r.ActiveMs, Lines: r.Lines,
 		Hits: r.Hits, Kills: r.KillCount(), Damage: r.DamageOut, PetDamage: r.PetDamage, Taken: r.DamageTaken,
-		EndReason: r.EndReason, Inferred: r.Inferred, TopSpells: []Spell{},
+		EndReason: r.EndReason, Inferred: r.Inferred, TopSpells: []Spell{}, Fingerprint: r.Fingerprint,
 	}
 	if r.ActiveMs > 0 {
 		out.DPS = float64(r.DamageOut+r.PetDamage) / (float64(r.ActiveMs) / 1000)
